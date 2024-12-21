@@ -1,0 +1,17 @@
+# Copy, run and delete a bash script
+
+- name: Copy script
+  ansible.builtin.copy:
+    src: "{{ src }}"
+    dest: "{{ dst }}"
+    mode: 0755
+
+- name: Run script
+  ansible.builtin.script:
+    cmd: "{{ src }}"
+    chdir: "{{ chdir }}"
+
+- name: Remove script
+  ansible.builtin.file:
+    path: "{{ dst }}"
+    state: absent

@@ -1,0 +1,13 @@
+---
+# This playbook deploys everything necessary for a complete phishing infrastructure
+
+- name: Deploy gophish
+  hosts: gophish
+  remote_user: root
+  gather_facts: true
+  roles:
+    - gophish
+
+
+
+

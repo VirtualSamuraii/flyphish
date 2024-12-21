@@ -1,0 +1,10 @@
+- name: Install Certbot
+  register: install_certbot
+  ansible.builtin.apt:
+    name: certbot
+    update_cache: true
+
+- name: Generate LetsEncrypt TLS certificate
+  register: generate_tls_certificate
+  ansible.builtin.shell: certbot certonly -n --agree-tos --no-bootstrap --standalone -m admin@{{ domain }} -d {{ domain }}
+  when: install_certbot is not failed
