@@ -27,7 +27,7 @@ sudo apt install ansible
 * Clone the repository
 
 ```
-git clone --recursively address
+git clone --recursively https://github.com/VirtualSamuraii/flyphish.git
 ```
 
 * Put your cloud instance public IP address in the **hosts** file.
@@ -66,6 +66,6 @@ ssh -i ~/.ssh/id_rsa youruser@yourcloudinstance -q -C -N -L 3333:127.0.0.1:3333
 
 # TODO
 
-* Add a SMTP redirector role
+* Add an SMTP redirector role
 * Add a RedELK role
 * Maybe automate the cloud instance creation part using Terraform
