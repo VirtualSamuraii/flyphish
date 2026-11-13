@@ -8,11 +8,11 @@ The playbook installs and configures **Gophish**, **Postfix** and **OpenDKIM** o
 
 ## Requirements
 
-* Make sure you have a Linux (Debian, Ubuntu or Kali) instance in the cloud (Amazon EC2, Azure VM, Google GCE...) with a public IPv4 address. Install OpenSSH and enable root access with SSH key-based authentication only.
+* Make sure you have a Linux (Debian, Ubuntu or Kali) instance in the cloud (Amazon EC2, Azure VM, Google GCE...) with a public IPv4 address, Git & OpenSSH installed. Enable root access with SSH key-based authentication only.
 
 ![alt text](images/amazonec2.png)
 
-* Purchase a domain and set it's DNS records accordingly (A, MX and SPF records must point to your cloud instance's public IP address).
+* Make sure you have a domain name and set it's DNS records accordingly (A, MX and SPF records must point to your cloud instance's public IP address).
 
 * Install Ansible on your own machine :
 
@@ -32,7 +32,9 @@ git clone --recursively https://github.com/VirtualSamuraii/flyphish.git
 
 * Put your cloud instance public IP address in the **hosts** file.
 
-* Put your phishing domain in the **group_vars/all.yml** file.
+* Put your "phishing domain" and "sender domain" in the **group_vars/all.yml** file.
+
+The "phishing_domain" variable is the domain associated with your phishing website and the "sender_domain" variable is your email sender domain. The advantage is that you can choose these domains independently: the shipping address and the visited URL don't necessarily have the same domain. They can also have exactly the same value, as in your default configuration.
 
 You're ready to go !
 
@@ -67,5 +69,3 @@ ssh -i ~/.ssh/id_rsa youruser@yourcloudinstance -q -C -N -L 3333:127.0.0.1:3333
 # TODO
 
 * Add an SMTP redirector role
-* Add a RedELK role
-* Maybe automate the cloud instance creation part using Terraform

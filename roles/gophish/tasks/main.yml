@@ -72,12 +72,12 @@
 
 - name: Add OpenDKIM settings to Postfix Conf
   blockinfile:
-    path: /etc/postfix/main.cf
+    path: "{{ postfix_config_file }}"
     block: |
-      milter_protocol = 2
+      milter_protocol = 6
       milter_default_action = accept
-      smtpd_milters = inet:localhost:8891
-      non_smtpd_milters = inet:localhost:8891
+      smtpd_milters = inet:127.0.0.1:8891
+      non_smtpd_milters = inet:127.0.0.1:8891
 
 - name: Remove IOCs from Postfix
   copy:
@@ -95,31 +95,96 @@
 
 
 - name: Install OpenDKIM packages
-  apt:
-    pkg:
-    - opendkim
-    - opendkim-tools
+  ansible.builtin.apt:
+    name:
+      - opendkim
+      - opendkim-tools
+    state: present
 
-- name: Prepare OpenDKIM Configuration
-  shell: |
-    adduser opendkim ssl-cert
-    mkdir -p /etc/opendkim/keys
+- name: Create OpenDKIM configuration directory
+  ansible.builtin.file:
+    path: /etc/opendkim
+    state: directory
+    owner: root
+    group: opendkim
+    mode: '0750'
+  notify: Restart OpenDKIM
 
-- name: Update OpenDKIM Conf file
-  copy:
-    src: ../files/opendkim.conf
-    dest: /etc/opendkim.conf
+- name: Create OpenDKIM keys directory
+  ansible.builtin.file:
+    path: /etc/opendkim/keys
+    state: directory
     owner: opendkim
     group: opendkim
-    mode: '0644'
-    force: true
+    mode: '0700'
+  notify: Restart OpenDKIM
 
-- name: Configure OpenDKIM
-  shell: |
-    opendkim-genkey -h sha256 -b 4096 -D /etc/opendkim/keys/ -s mail
-    touch /etc/opendkim/domains_whitelist && echo "{{phishing_domain}}" > /etc/opendkim/domains_whitelist
-    touch /etc/opendkim/hosts_whitelist && echo "127.0.0.1" > /etc/opendkim/domains_whitelist
-    chown -R opendkim:opendkim /etc/opendkim
+- name: Generate OpenDKIM key only if it does not exist
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/opendkim-genkey
+      - -h
+      - sha256
+      - -b
+      - '4096'
+      - -D
+      - /etc/opendkim/keys
+      - -s
+      - mail
+      - -d
+      - "{{ sender_domain }}"
+    creates: /etc/opendkim/keys/mail.private
+  notify: Restart OpenDKIM
+
+- name: Protect OpenDKIM private key
+  ansible.builtin.file:
+    path: /etc/opendkim/keys/mail.private
+    owner: opendkim
+    group: opendkim
+    mode: '0600'
+  notify: Restart OpenDKIM
+
+- name: Configure OpenDKIM signing domain
+  ansible.builtin.copy:
+    dest: /etc/opendkim/domains_whitelist
+    content: "{{ sender_domain }}\n"
+    owner: root
+    group: opendkim
+    mode: '0640'
+  notify: Restart OpenDKIM
+
+- name: Configure OpenDKIM trusted local hosts
+  ansible.builtin.copy:
+    dest: /etc/opendkim/hosts_whitelist
+    content: |
+      127.0.0.1
+      ::1
+    owner: root
+    group: opendkim
+    mode: '0640'
+  notify: Restart OpenDKIM
+
+- name: Update OpenDKIM Conf file
+  ansible.builtin.copy:
+    src: opendkim.conf
+    dest: /etc/opendkim.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart OpenDKIM
+
+- name: Validate OpenDKIM configuration
+  ansible.builtin.command: /usr/sbin/opendkim -n -x /etc/opendkim.conf
+  changed_when: false
+
+- name: Ensure opendkim is started and enabled at boot
+  ansible.builtin.systemd:
+    name: opendkim
+    state: started
+    enabled: true
+
+- name: Apply OpenDKIM changes before reloading Postfix
+  ansible.builtin.meta: flush_handlers
 
 - name: Reload service postfix
   systemd:
@@ -132,15 +197,10 @@
     state: started
     enabled: true
 
-- name: Ensure opendkim is started and enabled at boot
-  ansible.builtin.systemd:
-    name: opendkim
-    state: started
-    enabled: true
-
 - name: Add this public key to the DNS in order to sign e-mails 
   command: cat mail.txt chdir=/etc/opendkim/keys
   register: command_output
+  changed_when: false
 
 - name: Print to console
   debug:
